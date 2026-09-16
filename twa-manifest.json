@@ -1,0 +1,50 @@
+{
+  "packageId": "app.web.focafut2.twa",
+  "host": "focafut2.web.app",
+  "name": "FocaFtubol",
+  "launcherName": "Focafut2",
+  "display": "standalone",
+  "themeColor": "#000000",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#000000",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://focafut2.web.app/logo512.png",
+  "maskableIconUrl": "https://i.imgur.com/B3qPArK.png",
+  "monochromeIconUrl": "https://i.imgur.com/B3qPArK.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/Users/franco.strappazzon14/foca-futbol/android.keystore",
+    "alias": "Focafut2"
+  },
+  "appVersionName": "3",
+  "appVersionCode": 3,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://focafut2.web.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://focafut2.web.app/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [
+    "50:5E:82:78:11:7A:E8:80:B3:6A:09:E8:11:AE:31:F6:CB:4A:17:C6:C5:3C:B0:DD:8E:D0:A0:7E:24:CB:AC:31"
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "3"
+}

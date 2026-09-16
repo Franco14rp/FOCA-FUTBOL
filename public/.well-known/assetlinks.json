@@ -1,0 +1,9 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.web.focafut2.twa",
+        "sha256_cert_fingerprints": ["50:5E:82:78:11:7A:E8:80:B3:6A:09:E8:11:A
+      E:31:F6:CB:4A:17:C6:C5:3C:B0:DD:8E:D0:A0:7E:24:CB:AC:31"]
+      }
+    }]

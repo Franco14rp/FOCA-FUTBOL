@@ -21,3 +21,19 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# secrets / signing keys - NEVER commit
+android.keystore
+*.keystore
+*.jks
+users.json
+.firebase/
+.firebaserc
+
+# android / gradle build output
+/app/build/
+.gradle/
+*.apk
+*.aab
+*.idsig
+manifest-checksum.txt
