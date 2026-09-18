@@ -1,8 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, addDoc } from "firebase/firestore";
-import { db } from './firebase';
-import { UserContext } from './App'; // Import UserContext
+import { api } from './api';
 import './App.css';
 
 function CreateMatchPage() {
@@ -11,19 +9,10 @@ function CreateMatchPage() {
   const [date, setDate] = useState('');
   const [participants, setParticipants] = useState('10'); // Default to 10
   const navigate = useNavigate();
-  const user = useContext(UserContext); // Get user from context
 
   const handleCreateMatch = async () => {
     try {
-      await addDoc(collection(db, "matches"), {
-        field,
-        time,
-        date,
-        participants,
-        players: [], // Initialize with an empty array of players
-        createdBy: user.uid, // Store user's UID
-        status: 'pending', // New status field, default to pending
-      });
+      await api.createMatch({ field, time, date, participants: Number(participants) });
       alert('Partido creado exitosamente!');
       navigate('/matches'); // Navigate to match list after creating a match
     } catch (e) {

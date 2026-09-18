@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from './firebase';
+import { api, setToken } from './api';
 import './App.css';
 
 function LoginPage() {
@@ -12,8 +11,10 @@ function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault(); // Prevent default form submission
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate('/home');
+      const { token } = await api.login(email, password);
+      setToken(token);
+      // Recarga completa para que AuthWrapper vuelva a pedir /auth/me con el token nuevo.
+      window.location.href = '/home';
     } catch (error) {
       alert(`Error al iniciar sesión: ${error.message}`);
     }

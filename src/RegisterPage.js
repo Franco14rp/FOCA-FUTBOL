@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from './firebase';
+import { api } from './api';
 import './App.css';
 
 function RegisterPage() {
@@ -13,23 +11,7 @@ function RegisterPage() {
 
   const handleRegister = async () => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Store user profile in Firestore
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        email: userCredential.user.email,
-        name: name,
-        role: 'common', // Default role for new users
-      });
-      // Create player stats entry
-      await setDoc(doc(db, "playerStats", userCredential.user.uid), {
-        name: name,
-        ataque: 65,
-        defensa: 65,
-        corre: 65,
-        plus: 0, // Default to 0, not editable
-        promedio: ((65 + 65 + 65) / 300) * 100, // Calculated average
-        uid: userCredential.user.uid, // Link to user UID
-      });
+      await api.register(email, password, name);
       alert('Registro exitoso! Ahora puedes iniciar sesión.');
       navigate('/'); // Navigate to login page
     } catch (error) {

@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from './firebase';
+import { api } from './api';
 import PlayersModal from './PlayersModal';
 import AddPlayerModal from './AddPlayerModal';
 import FinalizeMatchModal from './FinalizeMatchModal'; // New import
 import TeamBalancerModal from './TeamBalancerModal';
 import { UserContext } from './App'; // Import UserContext
 import './App.css';
+
+const POLL_INTERVAL_MS = 5000;
 
 function MatchListPage() {
   const navigate = useNavigate();
@@ -28,31 +29,28 @@ function MatchListPage() {
   const user = useContext(UserContext); // Get user from context
   const currentUserName = user && user.name ? user.name : user ? user.email : ""; // Use authenticated user's name or email
 
-  useEffect(() => {
-    const q = query(collection(db, "matches"), where("status", "==", "pending"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMatches(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-    return () => unsubscribe();
+  const loadMatches = useCallback(async () => {
+    try {
+      const data = await api.getMatches({ status: 'pending' });
+      setMatches(data);
+    } catch (err) {
+      console.error('Error al cargar los partidos:', err);
+    }
   }, []);
 
-  const handleJoinMatch = async (id, currentPlayers, capacity) => {
-    const matchRef = doc(db, "matches", id);
-    let updatedPlayers;
+  useEffect(() => {
+    loadMatches();
+    const interval = setInterval(loadMatches, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadMatches]);
 
-    if (currentPlayers.includes(currentUserName)) {
-      // User wants to leave
-      updatedPlayers = currentPlayers.filter(player => player !== currentUserName);
-    } else {
-      // User wants to join
-      if (currentPlayers.length < capacity) {
-        updatedPlayers = [...currentPlayers, currentUserName];
-      } else {
-        alert('El partido está lleno.');
-        return;
-      }
+  const handleJoinMatch = async (id) => {
+    try {
+      await api.joinMatch(id);
+      loadMatches();
+    } catch (err) {
+      alert(err.message);
     }
-    await updateDoc(matchRef, { players: updatedPlayers });
   };
 
   const handleDeleteMatch = async (id, createdBy) => {
@@ -61,7 +59,8 @@ function MatchListPage() {
       return;
     }
     if (window.confirm('¿Estás seguro de que quieres eliminar este partido?')) {
-      await deleteDoc(doc(db, "matches", id));
+      await api.deleteMatch(id);
+      loadMatches();
     }
   };
 
@@ -81,9 +80,9 @@ function MatchListPage() {
       alert('No tienes permiso para guardar los cambios de este partido.');
       return;
     }
-    const matchRef = doc(db, "matches", id);
-    await updateDoc(matchRef, { field: editedField, time: editedTime, date: editedDate });
+    await api.updateMatch(id, { field: editedField, time: editedTime, date: editedDate });
     setEditingMatchId(null);
+    loadMatches();
   };
 
   const handleCancelEdit = () => {
@@ -102,17 +101,9 @@ function MatchListPage() {
       return;
     }
     if (window.confirm(`¿Estás seguro de que quieres eliminar a ${playerName} del partido?`)) {
-      const matchRef = doc(db, "matches", matchId);
-      const matchToUpdate = matches.find(m => m.id === matchId);
-      if (matchToUpdate) {
-        const updatedPlayers = matchToUpdate.players.filter(player => player !== playerName);
-        await updateDoc(matchRef, { players: updatedPlayers });
-        setShowPlayersModal(false); // Close modal after removal
-        // If the current user was the one removed, and it's their own match, they might need to leave
-        if (playerName === currentUserName) {
-          // Optionally, you might want to navigate them away or update their joined status
-        }
-      }
+      await api.removePlayerFromMatch(matchId, playerName);
+      setShowPlayersModal(false); // Close modal after removal
+      loadMatches();
     }
   };
 
@@ -126,8 +117,7 @@ function MatchListPage() {
       return;
     }
     setCurrentMatchToAddPlayer(match);
-    const playerStatsSnapshot = await getDocs(collection(db, "playerStats"));
-    const allPlayers = playerStatsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    const allPlayers = await api.getPlayerStats();
     const playersInMatch = match.players || [];
     const filteredPlayers = allPlayers.filter(player => !playersInMatch.includes(player.name));
     setAvailablePlayers(filteredPlayers);
@@ -136,11 +126,14 @@ function MatchListPage() {
 
   const handleSelectPlayer = async (playerName) => {
     if (currentMatchToAddPlayer) {
-      const matchRef = doc(db, "matches", currentMatchToAddPlayer.id);
-      const updatedPlayers = [...(currentMatchToAddPlayer.players || []), playerName];
-      await updateDoc(matchRef, { players: updatedPlayers });
-      setShowAddPlayerModal(false);
-      setCurrentMatchToAddPlayer(null);
+      try {
+        await api.addPlayerToMatch(currentMatchToAddPlayer.id, playerName);
+        setShowAddPlayerModal(false);
+        setCurrentMatchToAddPlayer(null);
+        loadMatches();
+      } catch (err) {
+        alert(err.message);
+      }
     }
   };
 
@@ -154,15 +147,10 @@ function MatchListPage() {
   };
 
   const handleFinalizeMatch = async (matchId, winner, score, playersPlayed) => {
-    const matchRef = doc(db, "matches", matchId);
-    await updateDoc(matchRef, {
-      status: 'finalized',
-      winner: winner,
-      score: score,
-      playersPlayed: playersPlayed, // Store players who actually played
-    });
+    await api.finalizeMatch(matchId, winner, score, playersPlayed);
     setShowFinalizeModal(false);
     setMatchToFinalize(null);
+    loadMatches();
   };
 
   const handleEquiposClick = (match) => {
@@ -244,7 +232,7 @@ function MatchListPage() {
                   {match.status !== 'finalized' ? (
                     <button
                       className={match.players && match.players.includes(currentUserName) ? 'Leave-button' : 'Join-button'}
-                      onClick={() => handleJoinMatch(match.id, match.players || [], parseInt(match.participants))}
+                      onClick={() => handleJoinMatch(match.id)}
                     >
                       {match.players && match.players.includes(currentUserName) ? 'Me bajo' : 'Me anoto'}
                     </button>
@@ -300,7 +288,7 @@ function MatchListPage() {
         <TeamBalancerModal
           match={currentMatchToAddPlayer}
           user={user} // Pass user prop
-          onClose={() => setShowTeamBalancerModal(false)}
+          onClose={() => { setShowTeamBalancerModal(false); loadMatches(); }}
         />
       )}
     </div>

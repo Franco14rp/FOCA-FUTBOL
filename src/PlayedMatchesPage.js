@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { db } from './firebase';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { api } from './api';
 import { UserContext } from './App';
 import { useNavigate } from 'react-router-dom';
 import './App.css';
+
+const POLL_INTERVAL_MS = 5000;
 
 function PlayedMatchesPage() {
   const navigate = useNavigate();
@@ -11,21 +12,21 @@ function PlayedMatchesPage() {
   const user = useContext(UserContext);
   const currentUserName = user && user.name ? user.name : user ? user.email : "";
 
-  useEffect(() => {
+  const loadPlayedMatches = useCallback(async () => {
     if (!currentUserName) return;
-
-    const q = query(
-      collection(db, "matches"),
-      where("status", "==", "finalized"),
-      where("playersPlayed", "array-contains", currentUserName)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPlayedMatches(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-
-    return () => unsubscribe();
+    try {
+      const data = await api.getMatches({ status: 'finalized', player: currentUserName });
+      setPlayedMatches(data);
+    } catch (err) {
+      console.error('Error al cargar los partidos jugados:', err);
+    }
   }, [currentUserName]);
+
+  useEffect(() => {
+    loadPlayedMatches();
+    const interval = setInterval(loadPlayedMatches, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadPlayedMatches]);
 
   return (
     <div className="App-header">

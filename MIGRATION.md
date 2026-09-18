@@ -1,5 +1,7 @@
 # Plan de migración: salir de Firebase
 
+> **Estado: implementado.** Este plan ya se ejecutó — el proyecto corre hoy sobre el backend propio descripto acá (`server/`, Node + Express + Prisma + SQLite), sin Firebase. Este documento queda como referencia de arquitectura y de las decisiones tomadas (ver también la sección "Historia" del [README](README.md#historia-por-qué-no-usa-firebase)). Para la puesta en marcha actual, seguí el [README](README.md#puesta-en-marcha).
+
 Este documento es una guía para quien continúe el proyecto y quiera sacarlo de Firebase (Auth + Firestore) y correrlo con un backend propio local (Node.js + Prisma + una base de datos embebida tipo SQLite), sin depender de un servicio en la nube.
 
 No es código, es el mapa de lo que hay que construir y en qué orden. La UI en React (`src/*.js`, `App.css`) se mantiene prácticamente igual; lo que cambia es de dónde vienen los datos.

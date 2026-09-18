@@ -1,21 +1,30 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
-import { db } from './firebase';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { api } from './api';
 import { UserContext } from './App'; // Import UserContext
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './App.css';
+
+const POLL_INTERVAL_MS = 5000;
 
 function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const currentUser = useContext(UserContext); // Get current user from context
   const navigate = useNavigate(); // Initialize useNavigate
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id })));
-    });
-    return () => unsubscribe();
+  const loadUsers = useCallback(async () => {
+    try {
+      const data = await api.getUsers();
+      setUsers(data);
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    }
   }, []);
+
+  useEffect(() => {
+    loadUsers();
+    const interval = setInterval(loadUsers, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadUsers]);
 
   const handleRoleChange = async (uid, newRole) => {
     if (currentUser && currentUser.uid === uid) {
@@ -26,8 +35,12 @@ function UserManagementPage() {
       alert('Solo el usuario Master puede cambiar roles.');
       return;
     }
-    const userRef = doc(db, "users", uid);
-    await updateDoc(userRef, { role: newRole });
+    try {
+      await api.updateUserRole(uid, newRole);
+      loadUsers();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (

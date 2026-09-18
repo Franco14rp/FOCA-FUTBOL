@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
-import { db } from './firebase';
+import { api } from './api';
 import './App.css';
 
 // Fisher-Yates shuffle algorithm
@@ -16,13 +15,8 @@ const shuffleArray = (array) => {
 
 async function fetchPlayersWithStats(playerNames) {
   if (!playerNames || playerNames.length === 0) return [];
-  const playerStatsQuery = query(collection(db, "playerStats"), where("name", "in", playerNames));
-  const playerStatsSnapshot = await getDocs(playerStatsQuery);
-  return playerStatsSnapshot.docs.map(doc => ({
-    ...doc.data(),
-    id: doc.id,
-    skillScore: doc.data().promedio || 0
-  }));
+  const stats = await api.getPlayerStats(playerNames);
+  return stats.map(s => ({ ...s, skillScore: s.promedio || 0 }));
 }
 
 function TeamBalancerModal({ match, user, onClose }) {
@@ -61,11 +55,7 @@ function TeamBalancerModal({ match, user, onClose }) {
         }
       });
 
-      const matchRef = doc(db, "matches", match.id);
-      await updateDoc(matchRef, {
-        teamA: currentTeamA.map(p => p.name),
-        teamB: currentTeamB.map(p => p.name),
-      });
+      await api.saveTeams(match.id, currentTeamA.map(p => p.name), currentTeamB.map(p => p.name));
 
       setTeamA(currentTeamA);
       setTeamB(currentTeamB);
@@ -118,11 +108,7 @@ function TeamBalancerModal({ match, user, onClose }) {
     const newTeamA = teamA.filter(p => p.id !== selectedPlayerA.id).concat(selectedPlayerB);
     const newTeamB = teamB.filter(p => p.id !== selectedPlayerB.id).concat(selectedPlayerA);
 
-    const matchRef = doc(db, "matches", match.id);
-    await updateDoc(matchRef, {
-      teamA: newTeamA.map(p => p.name),
-      teamB: newTeamB.map(p => p.name),
-    });
+    await api.saveTeams(match.id, newTeamA.map(p => p.name), newTeamB.map(p => p.name));
 
     setTeamA(newTeamA);
     setTeamB(newTeamB);
@@ -144,8 +130,8 @@ function TeamBalancerModal({ match, user, onClose }) {
               <h3>Equipo A</h3>
               <ul className="Players-list-modal">
                 {teamA.map(player => (
-                  <li 
-                    key={player.id} 
+                  <li
+                    key={player.id}
                     className={selectedPlayerA && selectedPlayerA.id === player.id ? 'selected' : ''}
                     onClick={() => handleSelectPlayer(player, 'A')}
                   >
@@ -158,8 +144,8 @@ function TeamBalancerModal({ match, user, onClose }) {
               <h3>Equipo B</h3>
               <ul className="Players-list-modal">
                 {teamB.map(player => (
-                  <li 
-                    key={player.id} 
+                  <li
+                    key={player.id}
                     className={selectedPlayerB && selectedPlayerB.id === player.id ? 'selected' : ''}
                     onClick={() => handleSelectPlayer(player, 'B')}
                   >
@@ -174,9 +160,9 @@ function TeamBalancerModal({ match, user, onClose }) {
           {(user && (user.role === 'master' || user.uid === match.createdBy)) && (
             <button className="Resortear-button" onClick={handleResortearClick}>🔄</button>
           )}
-          <button 
+          <button
             className="Swap-button"
-            onClick={handleSwapPlayers} 
+            onClick={handleSwapPlayers}
             disabled={!selectedPlayerA || !selectedPlayerB || !user || (user.role !== 'master' && user.uid !== match.createdBy)}
           >
             Intercambiar

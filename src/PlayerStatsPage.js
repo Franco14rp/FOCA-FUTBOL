@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { db } from './firebase';
-import { UserContext } from './App';
+import React, { useState, useEffect, useCallback } from 'react';
+import { api } from './api';
 import './App.css';
+
+const POLL_INTERVAL_MS = 5000;
 
 function PlayerStatsPage() {
   const [playerStats, setPlayerStats] = useState([]);
@@ -13,48 +13,36 @@ function PlayerStatsPage() {
   const [newCorre, setNewCorre] = useState(65);
   const [newUid, setNewUid] = useState(''); // Optional UID for linking
 
-  const user = useContext(UserContext);
-
   const statOptions = [30, 65, 100];
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "playerStats"), (snapshot) => {
-      setPlayerStats(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-    return () => unsubscribe();
+  const loadPlayerStats = useCallback(async () => {
+    try {
+      const data = await api.getPlayerStats();
+      setPlayerStats(data);
+    } catch (err) {
+      console.error('Error al cargar estadísticas:', err);
+    }
   }, []);
 
-  const calculatePromedio = (ataque, defensa, corre) => {
-    const sum = ataque + defensa + corre;
-    return parseFloat(((sum / 300) * 100).toFixed(2));
-  };
+  useEffect(() => {
+    loadPlayerStats();
+    const interval = setInterval(loadPlayerStats, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadPlayerStats]);
 
   const handleAddPlayerStats = async () => {
     if (!newName) {
       alert('El nombre del jugador es obligatorio.');
       return;
     }
-    const currentAtaque = parseInt(newAtaque);
-    const currentDefensa = parseInt(newDefensa);
-    const currentCorre = parseInt(newCorre);
-    const promedio = calculatePromedio(currentAtaque, currentDefensa, currentCorre);
-
     try {
-      const docRef = newUid ? doc(db, "playerStats", newUid) : doc(collection(db, "playerStats"));
-      await setDoc(docRef, {
-        name: newName,
-        ataque: currentAtaque,
-        defensa: currentDefensa,
-        corre: currentCorre,
-        plus: 0, // Default to 0, not editable
-        promedio: promedio,
-        uid: newUid || null,
-      });
+      await api.createPlayerStats({ name: newName, ataque: newAtaque, defensa: newDefensa, corre: newCorre, uid: newUid });
       setNewName('');
       setNewAtaque(65);
       setNewDefensa(65);
       setNewCorre(65);
       setNewUid('');
+      loadPlayerStats();
     } catch (e) {
       alert(`Error al añadir estadísticas: ${e.message}`);
     }
@@ -70,27 +58,15 @@ function PlayerStatsPage() {
   };
 
   const handleSavePlayerStats = async (id) => {
-    const currentAtaque = parseInt(newAtaque);
-    const currentDefensa = parseInt(newDefensa);
-    const currentCorre = parseInt(newCorre);
-    const promedio = calculatePromedio(currentAtaque, currentDefensa, currentCorre);
-
     try {
-      const statsRef = doc(db, "playerStats", id);
-      await updateDoc(statsRef, {
-        name: newName,
-        ataque: currentAtaque,
-        defensa: currentDefensa,
-        corre: currentCorre,
-        promedio: promedio,
-        uid: newUid || null,
-      });
+      await api.updatePlayerStats(id, { name: newName, ataque: newAtaque, defensa: newDefensa, corre: newCorre, uid: newUid });
       setEditingPlayerId(null);
       setNewName('');
       setNewAtaque(65);
       setNewDefensa(65);
       setNewCorre(65);
       setNewUid('');
+      loadPlayerStats();
     } catch (e) {
       alert(`Error al guardar estadísticas: ${e.message}`);
     }
@@ -99,7 +75,8 @@ function PlayerStatsPage() {
   const handleDeletePlayerStats = async (id) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar estas estadísticas de jugador?')) {
       try {
-        await deleteDoc(doc(db, "playerStats", id));
+        await api.deletePlayerStats(id);
+        loadPlayerStats();
       } catch (e) {
         alert(`Error al eliminar estadísticas: ${e.message}`);
       }

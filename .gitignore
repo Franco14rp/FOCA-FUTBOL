@@ -30,6 +30,13 @@ users.json
 .firebase/
 .firebaserc
 
+# backend (server/)
+server/node_modules
+server/.env
+server/prisma/dev.db
+server/prisma/*.db
+server/prisma/*.db-journal
+
 # android / gradle build output
 /app/build/
 .gradle/

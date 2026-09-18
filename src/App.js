@@ -9,9 +9,7 @@ import RegisterPage from './RegisterPage';
 import UserManagementPage from './UserManagementPage';
 import PlayerStatsPage from './PlayerStatsPage';
 import PlayedMatchesPage from './PlayedMatchesPage'; // New import
-import { auth, db } from './firebase';
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { api, getToken, setToken } from './api';
 
 export const UserContext = createContext(null);
 
@@ -21,34 +19,38 @@ function AuthWrapper() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const docRef = doc(db, "users", firebaseUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUser({ ...firebaseUser, ...docSnap.data() });
-        } else {
-          // User might have authenticated but no profile yet (e.g., new user)
-          setUser(firebaseUser);
+    const loadUser = async () => {
+      const token = getToken();
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        if (window.location.pathname !== '/' && window.location.pathname !== '/register') {
+          navigate('/');
         }
-      } else {
+        return;
+      }
+      try {
+        const me = await api.me();
+        setUser(me);
+      } catch (error) {
+        // Token inválido o expirado
+        setToken(null);
         setUser(null);
         if (window.location.pathname !== '/' && window.location.pathname !== '/register') {
-          navigate('/'); // Redirect to login if no user and not on login/register page
+          navigate('/');
         }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [navigate]);
+    };
+    loadUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/');
-    } catch (error) {
-      alert(`Error al cerrar sesión: ${error.message}`);
-    }
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    navigate('/');
   };
 
   if (loading) {

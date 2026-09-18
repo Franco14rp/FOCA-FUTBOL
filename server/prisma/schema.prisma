@@ -1,0 +1,49 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  role         String       @default("common") // "master" | "admin" | "common"
+  createdAt    DateTime     @default(now())
+  playerStats  PlayerStats?
+  matchesOwned Match[]      @relation("MatchOwner")
+}
+
+model PlayerStats {
+  id       String  @id @default(uuid())
+  name     String
+  ataque   Int
+  defensa  Int
+  corre    Int
+  plus     Int     @default(0)
+  promedio Float
+  userId   String? @unique
+  user     User?   @relation(fields: [userId], references: [id])
+}
+
+model Match {
+  id            String   @id @default(uuid())
+  field         String
+  date          String
+  time          String
+  participants  Int
+  status        String   @default("pending") // "pending" | "finalized"
+  players       String   @default("[]") // JSON string[]
+  teamA         String? // JSON string[]
+  teamB         String? // JSON string[]
+  winner        String?
+  score         String?
+  playersPlayed String? // JSON string[]
+  createdById   String
+  createdBy     User     @relation("MatchOwner", fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+}
